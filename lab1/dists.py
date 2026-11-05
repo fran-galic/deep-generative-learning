@@ -8,6 +8,7 @@ import numpy as np
 
 NumT = Union[np.ndarray, float]
 
+
 @dataclass
 class MixtureDist(ABC):
     pi: NumT
@@ -60,14 +61,23 @@ class UMDist(MixtureDist):
 
     @classmethod
     def random(cls, K: int) -> UMDist:
-        raise NotImplementedError
+        a = np.random.uniform(-3, 2, size=K).astype(np.float32)
+        widths = np.random.uniform(1, 3, size=K).astype(np.float32)
+        pi = np.random.dirichlet(5 * np.ones(K)).astype(np.float32)
+
+        return cls(pi, a, a + widths)
 
     def sample(self, L: int) -> NumT:
-        raise NotImplementedError
+        choices = np.random.choice(np.arange(self.K), size=L, p=self.pi)
+
+        return np.random.uniform(self.a[choices], self.b[choices]).astype(np.float32)
 
     @staticmethod
     def uniform_pdf(x: NumT, a: NumT, b: NumT) -> NumT:
-        raise NotImplementedError
+        if np.any(np.asarray(b) <= np.asarray(a)):
+            raise ValueError("Gornja granica mora biti veća od donje.")
+
+        return np.where((x >= a) & (x <= b), 1.0 / (b - a), 0.0)
 
     def p_xz(self, x: NumT, k: int) -> NumT:
-        raise NotImplementedError
+        return self.uniform_pdf(x, self.a[k], self.b[k])

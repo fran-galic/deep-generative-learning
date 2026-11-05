@@ -5,6 +5,7 @@ import tensorflow as tf
 
 TFData = Union[tf.Tensor, tf.Variable, float]
 
+
 class GMModel:
     def __init__(self, K):
         self.K = K
@@ -24,10 +25,23 @@ class GMModel:
 
     @tf.function
     def loss(self, data: TFData):
-        raise NotImplementedError
+        data = tf.cast(tf.reshape(data, [-1, 1]), self.mean.dtype)
+        component_nll = self.neglog_normal_pdf(data, self.mean, self.logvar)
+        component_nll -= tf.nn.log_softmax(self.logpi)
+
+        return -tf.reduce_logsumexp(-component_nll, axis=1)
 
     def p_xz(self, x: TFData, k: int) -> TFData:
-        raise NotImplementedError
+        x = tf.cast(tf.convert_to_tensor(x), self.mean.dtype)
+
+        return tf.exp(-self.neglog_normal_pdf(x, self.mean[k], self.logvar[k]))
 
     def p_x(self, x: TFData) -> TFData:
-        raise NotImplementedError
+        x = tf.cast(tf.reshape(x, [-1, 1]), self.mean.dtype)
+        component_log_prob = -self.neglog_normal_pdf(x, self.mean, self.logvar)
+        log_prob = tf.reduce_logsumexp(
+            tf.nn.log_softmax(self.logpi) + component_log_prob,
+            axis=1,
+        )
+
+        return tf.exp(log_prob)
